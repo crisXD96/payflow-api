@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$input = $Input | ConvertFrom-Json; $entry = @{ts=(Get-Date -Format o); session=$input.session_id; cmd=$input.tool_input.command} | ConvertTo-Json -Compress; $logDir = Join-Path $env:CLAUDE_PROJECT_DIR '.claude/logs'; New-Item -ItemType Directory -Force -Path $logDir | Out-Null; Add-Content -Path (Join-Path $logDir 'audit.jsonl') -Value $entry",
+            "shell": "powershell",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

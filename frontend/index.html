@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PayFlow Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      color-scheme: dark;
+      --bg: #0a0d14;
+      --surface: #10151f;
+      --surface-2: #161c29;
+      --surface-3: #1d2433;
+      --border: #232b3b;
+      --border-strong: #303a50;
+      --text: #e8edf5;
+      --muted: #8b95a8;
+      --faint: #5d6679;
+      --primary: #7c5cff;
+      --primary-2: #4f8cff;
+      --gradient: linear-gradient(135deg, #7c5cff 0%, #4f8cff 100%);
+      --success: #22c55e;
+      --danger: #f43f5e;
+      --warn: #f59e0b;
+      --info: #38bdf8;
+      --radius: 14px;
+      --radius-sm: 10px;
+      --ring: 0 0 0 3px rgba(124, 92, 255, .35);
+      --font: Inter, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+      --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+    }
+
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .bg-glow {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(600px 300px at 15% -5%, rgba(124, 92, 255, .18), transparent 70%),
+        radial-gradient(500px 280px at 90% 0%, rgba(79, 140, 255, .14), transparent 70%);
+    }
+
+    /* ── Iconos (Lucide, licencia ISC) ─────────────────────────────────── */
+    .i {
+      width: 1.15em; height: 1.15em; flex-shrink: 0;
+      stroke: currentColor; fill: none; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
+      vertical-align: middle;
+    }
+
+    /* ── Topbar ────────────────────────────────────────────────────────── */
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(10, 13, 20, .72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-inner {
+      max-width: 1120px; margin: 0 auto;
+      padding: 12px 24px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-mark {
+      width: 38px; height: 38px; border-radius: 11px;
+      display: grid; place-items: center;
+      background: var(--gradient); color: #fff; font-size: 20px;
+      box-shadow: 0 6px 20px rgba(124, 92, 255, .35);
+    }
+    .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+    .brand-name { font-weight: 700; font-size: 1.05rem; letter-spacing: -.2px; }
+    .brand-sub { font-size: .75rem; color: var(--muted); }
+    .pill {
+      font-size: .66rem; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 999px;
+    }
+    .pill-demo { background: rgba(124, 92, 255, .14); color: #b8a8ff; border: 1px solid rgba(124, 92, 255, .35); }
+
+    .health {
+      margin-left: auto;
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: .8rem; color: var(--muted);
+      padding: 6px 12px; border-radius: 999px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .health-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); position: relative; }
+    .health[data-state="ok"] .health-dot { background: var(--success); }
+    .health[data-state="ok"] .health-dot::after {
+      content: ""; position: absolute; inset: -4px; border-radius: 50%;
+      border: 2px solid var(--success); opacity: 0;
+      animation: ping 2s ease-out infinite;
+    }
+    .health[data-state="error"] .health-dot { background: var(--danger); }
+    .health[data-state="error"] { color: #fda4af; }
+    @keyframes ping { 0% { transform: scale(.6); opacity: .8; } 100% { transform: scale(1.6); opacity: 0; } }
+
+    /* ── Layout ────────────────────────────────────────────────────────── */
+    .container {
+      position: relative; z-index: 1;
+      max-width: 1120px; margin: 0 auto;
+      padding: 32px 24px 56px;
+      display: grid; gap: 20px;
+    }
+    .hero h1 { font-size: clamp(1.45rem, 3vw, 1.9rem); font-weight: 750; letter-spacing: -.6px; }
+    .hero p { color: var(--muted); margin-top: 4px; }
+    .grid { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); align-items: start; }
+
+    /* ── Cards ─────────────────────────────────────────────────────────── */
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.025), transparent 120px), var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 12px 32px rgba(0,0,0,.25);
+      min-width: 0;
+    }
+    .card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .card-head-split { justify-content: space-between; flex-wrap: wrap; }
+    .card-head-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .card-head h2 { font-size: 1.02rem; font-weight: 650; }
+    .card-sub { font-size: .8rem; color: var(--muted); }
+    .card-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: grid; place-items: center; font-size: 19px; flex-shrink: 0;
+    }
+    .ci-violet { background: rgba(124, 92, 255, .14); color: #a996ff; }
+    .ci-green  { background: rgba(34, 197, 94, .12);  color: #4ade80; }
+    .ci-blue   { background: rgba(56, 189, 248, .12); color: #7dd3fc; }
+
+    /* ── Forms ─────────────────────────────────────────────────────────── */
+    form { display: grid; gap: 14px; }
+    /* minmax(0,1fr): sin esto la pista se ensancha al ancho intrínseco del input y desborda en 320px */
+    .field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
+    .field-row { display: grid; gap: 14px; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+    label, .label { font-size: .78rem; font-weight: 600; color: var(--muted); }
+    .optional { color: var(--faint); font-weight: 500; }
+
+    .control {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0 12px; height: 44px;
+      color: var(--faint);
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .control:hover { border-color: var(--border-strong); }
+    .control:focus-within { border-color: var(--primary); box-shadow: var(--ring); color: #a996ff; }
+    .control:has([aria-invalid="true"]) { border-color: rgba(244, 63, 94, .7); color: #fb7185; }
+    .control:has([aria-invalid="true"]):focus-within { box-shadow: 0 0 0 3px rgba(244, 63, 94, .3); }
+    .control input {
+      flex: 1; min-width: 0; height: 100%;
+      background: transparent; border: 0; outline: 0;
+      color: var(--text); font: inherit; font-size: .92rem;
+    }
+    .control input::placeholder { color: var(--faint); }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    .amount-prefix {
+      font-weight: 700; color: var(--text);
+      padding-right: 10px; margin-right: 2px;
+      border-right: 1px solid var(--border);
+      height: 60%; display: flex; align-items: center;
+      white-space: nowrap; font-size: .92rem;
+    }
+    .control.amount input { font-size: 1.05rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+    /* ── Buttons ───────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 42px; padding: 0 16px;
+      border-radius: var(--radius-sm); border: 1px solid transparent;
+      font: inherit; font-size: .88rem; font-weight: 650;
+      cursor: pointer; white-space: nowrap;
+      transition: transform .08s, background .15s, border-color .15s, box-shadow .15s, opacity .15s;
+    }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:focus-visible { outline: none; box-shadow: var(--ring); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-primary { background: var(--gradient); color: #fff; box-shadow: 0 6px 18px rgba(124, 92, 255, .3); }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn-secondary { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface-3); }
+    .btn-block { width: 100%; height: 46px; }
+    .btn-icon { width: 36px; height: 36px; padding: 0; }
+    .btn-ghost { background: transparent; color: var(--muted); border-color: var(--border); }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); background: var(--surface-3); }
+    .btn-sm { height: 32px; padding: 0 11px; font-size: .78rem; border-radius: 8px; gap: 6px; }
+    .btn-success { background: rgba(34, 197, 94, .12); color: #4ade80; border-color: rgba(34, 197, 94, .3); }
+    .btn-success:hover:not(:disabled) { background: rgba(34, 197, 94, .2); }
+    .btn-danger  { background: rgba(244, 63, 94, .1);  color: #fb7185; border-color: rgba(244, 63, 94, .3); }
+    .btn-danger:hover:not(:disabled)  { background: rgba(244, 63, 94, .18); }
+    .btn-warn    { background: rgba(245, 158, 11, .1); color: #fbbf24; border-color: rgba(245, 158, 11, .3); }
+    .btn-warn:hover:not(:disabled)    { background: rgba(245, 158, 11, .18); }
+
+    .btn.loading .i { display: none; }
+    .btn.loading::before {
+      content: ""; width: 15px; height: 15px; border-radius: 50%;
+      border: 2px solid currentColor; border-right-color: transparent;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── API key ───────────────────────────────────────────────────────── */
+    .key-box {
+      margin-top: 16px; padding: 14px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, rgba(124, 92, 255, .1), rgba(79, 140, 255, .06));
+      border: 1px solid rgba(124, 92, 255, .3);
+      animation: rise .25s ease-out;
+    }
+    .key-head { display: flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--muted); margin-bottom: 10px; }
+    .key-head .i { color: #a996ff; }
+    .key-head strong { color: var(--text); font-weight: 650; overflow-wrap: anywhere; }
+    .key-row { display: flex; align-items: center; gap: 8px; }
+    .key-row code {
+      flex: 1; min-width: 0;
+      font-family: var(--mono); font-size: .82rem; color: #c4b8ff;
+      background: rgba(0,0,0,.25); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 10px;
+      overflow-wrap: anywhere;
+    }
+    .key-hint { font-size: .74rem; color: var(--faint); margin-top: 8px; }
+    .key-hint code { font-family: var(--mono); color: var(--muted); }
+
+    /* ── Currency picker ───────────────────────────────────────────────── */
+    .currency { position: relative; }
+    .currency-trigger {
+      width: 100%; height: 44px;
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 10px 0 6px;
+      background: var(--surface-2); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font: inherit; text-align: left; cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .currency-trigger:hover { border-color: var(--border-strong); }
+    .currency-trigger:focus-visible, .currency-trigger[aria-expanded="true"] {
+      outline: none; border-color: var(--primary); box-shadow: var(--ring);
+    }
+    .cur-symbol {
+      min-width: 32px; height: 32px; padding: 0 6px; border-radius: 8px;
+      display: grid; place-items: center; flex-shrink: 0;
+      background: var(--gradient); color: #fff;
+      font-weight: 700; font-size: .9rem; line-height: 1;
+    }
+    .cur-symbol[data-long="true"] { font-size: .68rem; }
+    .cur-text { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.2; }
+    .cur-code { font-weight: 700; font-size: .88rem; }
+    .cur-name { font-size: .72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .currency-trigger .chevron { color: var(--muted); transition: transform .2s; }
+    .currency-trigger[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+
+    .currency-pop {
+      position: absolute; top: calc(100% + 8px); right: 0; z-index: 30;
+      width: max(100%, 340px); max-width: calc(100vw - 32px);
+      background: var(--surface-2);
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.55);
+      overflow: hidden;
+      animation: rise .16s ease-out;
+    }
+    .cur-search {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 12px; height: 46px;
+      border-bottom: 1px solid var(--border);
+      color: var(--faint);
+    }
+    .cur-search input {
+      flex: 1; min-width: 0; height: 100%;
+      background: transparent; border: 0; outline: 0;
+      color: var(--text); font: inherit; font-size: .9rem;
+    }
+    .cur-count { font-size: .72rem; color: var(--faint); white-space: nowrap; }
+    .cur-list { list-style: none; max-height: 320px; overflow-y: auto; padding: 6px; overscroll-behavior: contain; }
+    .cur-group {
+      font-size: .68rem; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+      color: var(--faint); padding: 10px 10px 6px;
+    }
+    .cur-option {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 10px; border-radius: 8px; cursor: pointer;
+    }
+    .cur-option .cur-symbol { background: var(--surface-3); color: var(--text); min-width: 30px; height: 30px; }
+    .cur-option.active { background: var(--surface-3); }
+    .cur-option.active .cur-symbol, .cur-option[aria-selected="true"] .cur-symbol { background: var(--gradient); color: #fff; }
+    .cur-opt-name { flex: 1; min-width: 0; font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cur-opt-code { font-family: var(--mono); font-size: .76rem; color: var(--muted); }
+    .cur-check { color: #a996ff; }
+    .cur-empty { padding: 20px 10px; text-align: center; color: var(--muted); font-size: .85rem; }
+
+    /* ── Stats ─────────────────────────────────────────────────────────── */
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .stat {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: var(--radius-sm);
+      background: var(--surface-2); border: 1px solid var(--border);
+      min-width: 0;
+    }
+    .stat-icon { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; flex-shrink: 0; }
+    .stat-value { font-size: 1.15rem; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .stat-label { font-size: .72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .s-pending   { background: rgba(245, 158, 11, .12); color: #fbbf24; }
+    .s-completed { background: rgba(34, 197, 94, .12);  color: #4ade80; }
+    .s-failed    { background: rgba(244, 63, 94, .12);  color: #fb7185; }
+    .s-refunded  { background: rgba(56, 189, 248, .12); color: #7dd3fc; }
+
+    /* ── Tags ──────────────────────────────────────────────────────────── */
+    .tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px 3px 7px; border-radius: 999px;
+      font-size: .74rem; font-weight: 650; white-space: nowrap;
+    }
+    .tag .i { width: .95em; height: .95em; stroke-width: 2.5; }
+
+    /* ── Table ─────────────────────────────────────────────────────────── */
+    .table-wrap { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    th {
+      text-align: left; padding: 10px 14px;
+      font-size: .7rem; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+      color: var(--faint); background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr { transition: background .12s; }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    .pid { font-family: var(--mono); font-size: .76rem; color: var(--muted); }
+    .money { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .money-code { font-family: var(--mono); font-size: .7rem; color: var(--faint); margin-left: 6px; }
+    .muted { color: var(--muted); }
+    .date { color: var(--muted); font-size: .8rem; }
+    .actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+
+    /* Detalle (descripción + cliente): la única columna flexible.
+       width:100% + max-width:0 hace que ocupe el espacio sobrante sin empujar la tabla. */
+    .cell-detail { width: 100%; max-width: 0; min-width: 180px; white-space: normal; }
+    .detail-desc {
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; overflow-wrap: anywhere;
+    }
+    .detail-client {
+      display: flex; align-items: center; gap: 5px; min-width: 0;
+      color: var(--muted); font-size: .78rem; margin-top: 2px;
+    }
+    .detail-client .i { color: var(--faint); }
+    .detail-client span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .empty {
+      display: grid; justify-items: center; gap: 8px; text-align: center;
+      padding: 36px 16px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm);
+    }
+    .empty-icon {
+      width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center;
+      background: var(--surface-2); color: var(--muted); font-size: 24px; margin-bottom: 4px;
+    }
+    .empty strong { font-weight: 650; }
+    .empty p { color: var(--muted); font-size: .85rem; max-width: 340px; }
+
+    /* ── Toasts ────────────────────────────────────────────────────────── */
+    .toasts {
+      position: fixed; right: 20px; bottom: 20px; z-index: 50;
+      display: grid; gap: 10px; width: min(380px, calc(100vw - 32px));
+    }
+    .toast {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 14px; border-radius: 12px;
+      background: var(--surface-3); border: 1px solid var(--border-strong);
+      box-shadow: 0 14px 34px rgba(0,0,0,.45);
+      font-size: .86rem; animation: rise .2s ease-out;
+    }
+    .toast .i { margin-top: 2px; }
+    .toast-success .i { color: #4ade80; }
+    .toast-error { border-color: rgba(244, 63, 94, .45); }
+    .toast-error .i { color: #fb7185; }
+    .toast.leaving { opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    [hidden] { display: none !important; }
+
+    /* ── Responsive ────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    /* Por debajo de 1100px la tabla pasa a tarjetas compactas:
+         importe ........ estado
+         descripción / cliente
+         ID ............. fecha
+         [ acciones ]                                                         */
+    @media (max-width: 1100px) {
+      .table-wrap { border: 0; overflow: visible; }
+      table, tbody, tr, td { display: block; }
+      thead { display: none; }
+      tbody { display: grid; gap: 10px; }
+      tbody tr {
+        display: grid; grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "amount status" "detail detail" "id date" "actions actions";
+        gap: 8px 12px; align-items: center;
+        background: var(--surface-2); border: 1px solid var(--border);
+        border-radius: var(--radius-sm); padding: 14px;
+      }
+      tbody tr:hover { background: var(--surface-2); }
+      td { padding: 0; border: 0; min-width: 0; }
+      .cell-amount  { grid-area: amount; }
+      .cell-amount .money { font-size: 1.15rem; }
+      .cell-status  { grid-area: status; justify-self: end; }
+      .cell-detail  { grid-area: detail; width: auto; max-width: none; min-width: 0; }
+      .cell-detail-empty { display: none; }
+      .cell-id      { grid-area: id; }
+      .cell-id::before { content: "ID "; font-size: .72rem; color: var(--faint); }
+      .cell-date    { grid-area: date; justify-self: end; text-align: right; white-space: normal; font-size: .76rem; }
+      .cell-actions { grid-area: actions; padding-top: 12px; margin-top: 2px; border-top: 1px solid var(--border); }
+      .cell-actions-empty { display: none; }
+      .actions .btn { flex: 1; }
+    }
+    @media (min-width: 700px) and (max-width: 1100px) {
+      tbody { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+    }
+    @media (max-width: 600px) {
+      .topbar-inner { padding: 10px 16px; }
+      .container { padding: 22px 16px 40px; gap: 16px; }
+      .card { padding: 18px 16px; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .field-row { grid-template-columns: minmax(0, 1fr); }
+      /* El campo de moneda ya ocupa todo el ancho: el mínimo de 340px lo sacaba de pantalla por la izquierda */
+      .currency-pop { width: 100%; }
+      .brand-sub { display: none; }
+      .toasts { right: 16px; bottom: 16px; }
+    }
+    @media (max-width: 380px) {
+      .pill-demo { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Sprite de iconos: Lucide (https://lucide.dev), licencia ISC. Inline, sin dependencias externas. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-credit-card" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></symbol>
+    <symbol id="i-banknote" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+    <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+    <symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+    <symbol id="i-key-round" viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-circle-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></symbol>
+  </defs>
+</svg>
+
+<div class="bg-glow" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark"><svg class="i" aria-hidden="true"><use href="#i-credit-card"/></svg></span>
+      <div class="brand-text">
+        <span class="brand-name">PayFlow</span>
+        <span class="brand-sub">Dashboard de pagos</span>
+      </div>
+      <span class="pill pill-demo">Demo</span>
+    </div>
+    <div class="health" id="health" data-state="checking" role="status">
+      <span class="health-dot"></span>
+      <span id="health-text">Comprobando…</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="hero">
+    <h1>Panel de pagos</h1>
+    <p>Crea un merchant, cobra en cualquier moneda y gestiona el ciclo de vida de cada pago.</p>
+  </section>
+
+  <div class="grid">
+
+    <!-- MERCHANT -->
+    <section class="card" aria-labelledby="merchant-title">
+      <div class="card-head">
+        <span class="card-icon ci-violet"><svg class="i" aria-hidden="true"><use href="#i-store"/></svg></span>
+        <div>
+          <h2 id="merchant-title">Merchant</h2>
+          <p class="card-sub">Registra un comercio y obtén su API key</p>
+        </div>
+      </div>
+
+      <form id="merchant-form" novalidate>
+        <div class="field">
+          <label for="m-name">Nombre</label>
+          <div class="control">
+            <svg class="i" aria-hidden="true"><use href="#i-user"/></svg>
+            <input id="m-name" type="text" placeholder="Mi Tienda Online" autocomplete="organization" maxlength="120" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="m-email">Email</label>
+          <div class="control">
+            <svg class="i" aria-hidden="true"><use href="#i-mail"/></svg>
+            <input id="m-email" type="email" placeholder="tienda@ejemplo.com" autocomplete="email" />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="m-submit">
+          <svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>
+          <span>Crear merchant</span>
+        </button>
+      </form>
+
+      <div class="key-box" id="key-box" hidden>
+        <div class="key-head">
+          <svg class="i" aria-hidden="true"><use href="#i-key-round"/></svg>
+          <span>API key de <strong id="key-merchant"></strong></span>
+        </div>
+        <div class="key-row">
+          <code id="api-key-value"></code>
+          <button type="button" class="btn btn-ghost btn-icon" id="copy-key" aria-label="Copiar API key" title="Copiar">
+            <svg class="i" aria-hidden="true"><use href="#i-copy"/></svg>
+          </button>
+        </div>
+        <p class="key-hint">Guárdala: se envía en la cabecera <code>X-API-Key</code> de cada pago.</p>
+      </div>
+    </section>
+
+    <!-- NUEVO PAGO -->
+    <section class="card" aria-labelledby="payment-title">
+      <div class="card-head">
+        <span class="card-icon ci-green"><svg class="i" aria-hidden="true"><use href="#i-banknote"/></svg></span>
+        <div>
+          <h2 id="payment-title">Nuevo pago</h2>
+          <p class="card-sub">Importe, moneda y datos del cliente</p>
+        </div>
+      </div>
+
+      <form id="payment-form" novalidate>
+        <div class="field-row">
+          <div class="field">
+            <label for="p-amount">Importe</label>
+            <div class="control amount">
+              <span class="amount-prefix" id="amount-prefix">€</span>
+              <input id="p-amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00" />
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="label" id="cur-label">Moneda</span>
+            <div class="currency" id="currency">
+              <button type="button" class="currency-trigger" id="cur-trigger"
+                      aria-haspopup="listbox" aria-expanded="false" aria-labelledby="cur-label cur-trigger">
+                <span class="cur-symbol" id="cur-symbol">€</span>
+                <span class="cur-text">
+                  <span class="cur-code" id="cur-code">EUR</span>
+                  <span class="cur-name" id="cur-name">Euro</span>
+                </span>
+                <svg class="i chevron" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+              </button>
+              <div class="currency-pop" id="cur-pop" hidden>
+                <div class="cur-search">
+                  <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+                  <input id="cur-search" type="text" placeholder="Buscar por código o nombre…"
+                         role="combobox" aria-controls="cur-list" aria-expanded="true"
+                         aria-autocomplete="list" aria-label="Buscar moneda" autocomplete="off" spellcheck="false" />
+                  <span class="cur-count" id="cur-count"></span>
+                </div>
+                <ul class="cur-list" id="cur-list" role="listbox" aria-label="Monedas"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="p-desc">Descripción <span class="optional">(opcional)</span></label>
+          <div class="control">
+            <svg class="i" aria-hidden="true"><use href="#i-file-text"/></svg>
+            <input id="p-desc" type="text" placeholder="Suscripción Pro" maxlength="200" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="p-email">Email del cliente <span class="optional">(opcional)</span></label>
+          <div class="control">
+            <svg class="i" aria-hidden="true"><use href="#i-mail"/></svg>
+            <input id="p-email" type="email" placeholder="cliente@ejemplo.com" autocomplete="off" />
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="p-submit">
+          <span id="p-submit-text">Crear pago</span>
+          <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg>
+        </button>
+      </form>
+    </section>
+  </div>
+
+  <!-- PAGOS -->
+  <section class="card" aria-labelledby="payments-title">
+    <div class="card-head card-head-split">
+      <div class="card-head-main">
+        <span class="card-icon ci-blue"><svg class="i" aria-hidden="true"><use href="#i-receipt"/></svg></span>
+        <div>
+          <h2 id="payments-title">Pagos</h2>
+          <p class="card-sub" id="payments-sub">Sin merchant activo</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-secondary" id="refresh">
+        <svg class="i" aria-hidden="true"><use href="#i-refresh-cw"/></svg>
+        <span>Actualizar</span>
+      </button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <div id="payments-container"></div>
+  </section>
+
+</main>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+  // Mismo origen que sirve el dashboard; fallback (puerto por defecto de uvicorn) para abrir el HTML directamente.
+  const API = location.protocol.startsWith('http') ? location.origin : 'http://localhost:8000';
+  let currentApiKey = null;
+  let currentMerchant = null;
+  let selectedCurrency = 'EUR';
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+  const icon = (name, cls = '') => `<svg class="i ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+  // Quita tildes/diacríticos para buscar "peso" o "dolar" sin importar acentos.
+  const norm = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+  // ── Toasts ──────────────────────────────────────────────────────────────────
+  function toast(msg, type = 'success') {
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    el.innerHTML = `${icon(type === 'error' ? 'circle-alert' : 'circle-check')}<span></span>`;
+    el.querySelector('span').textContent = msg;
+    $('toasts').appendChild(el);
+    setTimeout(() => {
+      el.classList.add('leaving');
+      setTimeout(() => el.remove(), 220);
+    }, 4500);
+  }
+
+  // Errores 422 de la API → mensaje en español + id del input a resaltar.
+  const FIELD_ERRORS = {
+    name:           { input: 'm-name',   msg: 'El nombre es obligatorio (máx. 120 caracteres).' },
+    email:          { input: 'm-email',  msg: 'El email del merchant no es válido.' },
+    amount:         { input: 'p-amount', msg: 'El importe debe ser un número mayor que cero.' },
+    currency:       { input: null,       msg: 'La moneda seleccionada no es válida.' },
+    description:    { input: 'p-desc',   msg: 'La descripción admite como máximo 200 caracteres.' },
+    customer_email: { input: 'p-email',  msg: 'El email del cliente no es válido.' },
+  };
+
+  // Errores a nivel de modelo: llegan con loc ["body"], así que se asocian al campo por su tipo.
+  // amount_decimals ya trae un mensaje en español y concreto ("EUR admite como máximo 2 decimales").
+  const ERROR_TYPE_FIELD = { amount_decimals: 'amount' };
+
+  function errorMessage(data, fallback) {
+    if (typeof data?.detail === 'string') return data.detail;
+    if (Array.isArray(data?.detail)) {
+      const parsed = data.detail.map((e) => {
+        const byType = ERROR_TYPE_FIELD[e.type];
+        const field = FIELD_ERRORS[byType || e.loc?.at(-1)];
+        return { input: field?.input, msg: byType ? e.msg : field?.msg || e.msg };
+      });
+      markInvalid(parsed.map((p) => p.input).filter(Boolean));
+      return [...new Set(parsed.map((p) => p.msg))].join(' ');
+    }
+    return fallback;
+  }
+
+  // ── Validación de campos ────────────────────────────────────────────────────
+  function markInvalid(ids) {
+    ids.forEach((id) => $(id).setAttribute('aria-invalid', 'true'));
+    if (ids.length) $(ids[0]).focus();
+  }
+  function clearInvalid(form) {
+    form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+  }
+  // Valida en cliente: devuelve el primer error o null.
+  function firstError(checks) {
+    for (const [id, ok, msg] of checks) if (!ok) return { id, msg };
+    return null;
+  }
+  function failValidation(err) {
+    markInvalid([err.id]);
+    toast(err.msg, 'error');
+  }
+  document.addEventListener('input', (e) => e.target.removeAttribute?.('aria-invalid'));
+
+  function setLoading(btn, on) {
+    btn.disabled = on;
+    btn.classList.toggle('loading', on);
+  }
+
+  // ── Monedas (ISO 4217 en circulación) ───────────────────────────────────────
+  // Estas tres listas replican app/currencies.py; tests/test_frontend_sync.py falla si se desalinean.
+  const ACTIVE_CURRENCIES = (
+    'AED AFN ALL AMD AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL BSD BTN BWP BYN BZD ' +
+    'CAD CDF CHF CLP CNY COP CRC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP ' +
+    'GMD GNF GTQ GYD HKD HNL HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD ' +
+    'KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MYR MZN NAD NGN ' +
+    'NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP ' +
+    'SLE SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD UYU UZS VES VND ' +
+    'VUV WST XAF XCD XCG XOF XPF YER ZAR ZMW ZWG'
+  ).split(' ');
+  // Decimales según ISO 4217 (lo que valida la API). No se usan los del navegador (CLDR):
+  // en 16 monedas difieren (p. ej. COP, HUF, IDR muestran 0) y el importe se redondeaba al mostrarlo.
+  const ZERO_DECIMALS = 'BIF CLP DJF GNF ISK JPY KMF KRW PYG RWF UGX VND VUV XAF XOF XPF'.split(' ');
+  const THREE_DECIMALS = 'BHD IQD JOD KWD LYD OMR TND'.split(' ');
+  const minorUnits = (code) => (ZERO_DECIMALS.includes(code) ? 0 : THREE_DECIMALS.includes(code) ? 3 : 2);
+
+  const POPULAR = ['USD', 'EUR', 'MXN', 'GBP', 'CAD', 'BRL', 'COP', 'ARS', 'CLP', 'PEN', 'JPY', 'CHF', 'CNY'];
+
+  // Formato numérico según la configuración regional del navegador; nombres siempre en español.
+  const LOCALE = navigator.language || 'es';
+  // Códigos recientes que algunos navegadores aún no traducen.
+  const NAME_FALLBACK = {
+    SLE: 'Leone de Sierra Leona',
+    XCG: 'Florín del Caribe',
+    ZWG: 'Oro de Zimbabue (ZiG)',
+  };
+
+  const displayNames = (() => {
+    try { return new Intl.DisplayNames(['es'], { type: 'currency' }); } catch { return null; }
+  })();
+
+  function currencyInfo(code) {
+    let name = code, symbol = code;
+    const digits = minorUnits(code);
+    try { name = displayNames?.of(code) || code; } catch {}
+    if (name === code && NAME_FALLBACK[code]) name = NAME_FALLBACK[code];
+    try {
+      const nf = new Intl.NumberFormat(LOCALE, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' });
+      symbol = nf.formatToParts(0).find((p) => p.type === 'currency')?.value || code;
+    } catch {}
+    return { code, name: name.charAt(0).toUpperCase() + name.slice(1), symbol, digits };
+  }
+
+  const CURRENCIES = ACTIVE_CURRENCIES.map(currencyInfo).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  const BY_CODE = Object.fromEntries(CURRENCIES.map((c) => [c.code, c]));
+
+  // Muestra siempre los decimales ISO de la moneda: nunca redondea un importe guardado.
+  function formatMoney(amount, code) {
+    if (typeof amount !== 'number' || !Number.isFinite(amount)) return '—';
+    const digits = minorUnits(code);
+    try {
+      return new Intl.NumberFormat(LOCALE, {
+        style: 'currency', currency: code, currencyDisplay: 'narrowSymbol',
+        minimumFractionDigits: digits, maximumFractionDigits: digits,
+      }).format(amount);
+    } catch {
+      return `${amount.toFixed(digits)} ${code}`;
+    }
+  }
+
+  // ── Selector de moneda (combobox con búsqueda) ──────────────────────────────
+  const curTrigger = $('cur-trigger');
+  const curPop = $('cur-pop');
+  const curSearch = $('cur-search');
+  const curList = $('cur-list');
+  let visibleCurrencies = [];
+  let activeIndex = -1;
+
+  function optionHtml(c, i) {
+    const selected = c.code === selectedCurrency;
+    return `<li id="cur-opt-${i}" class="cur-option" role="option" data-index="${i}" aria-selected="${selected}">
+      <span class="cur-symbol" data-long="${c.symbol.length > 2}">${esc(c.symbol)}</span>
+      <span class="cur-opt-name">${esc(c.name)}</span>
+      <span class="cur-opt-code">${esc(c.code)}</span>
+      ${selected ? icon('check', 'cur-check') : ''}
+    </li>`;
+  }
+
+  function renderCurrencyList(query = '') {
+    const q = norm(query.trim());
+    const matches = CURRENCIES.filter((c) => !q || norm(c.code).includes(q) || norm(c.name).includes(q));
+    const popular = q ? [] : POPULAR.map((code) => BY_CODE[code]).filter(Boolean);
+    visibleCurrencies = [...popular, ...matches];
+
+    let html = '';
+    if (popular.length) {
+      html += '<li class="cur-group" role="presentation">Populares</li>';
+      html += popular.map((c, i) => optionHtml(c, i)).join('');
+    }
+    html += `<li class="cur-group" role="presentation">${q ? 'Resultados' : 'Todas las monedas'}</li>`;
+    html += matches.length
+      ? matches.map((c, i) => optionHtml(c, popular.length + i)).join('')
+      : `<li class="cur-empty" role="presentation">Sin resultados para “${esc(query)}”</li>`;
+
+    curList.innerHTML = html;
+    $('cur-count').textContent = `${matches.length} de ${CURRENCIES.length}`;
+
+    const selectedIdx = visibleCurrencies.findIndex((c) => c.code === selectedCurrency);
+    setActive(q ? (visibleCurrencies.length ? 0 : -1) : selectedIdx);
+  }
+
+  function setActive(i) {
+    curList.querySelector('.cur-option.active')?.classList.remove('active');
+    activeIndex = i;
+    if (i < 0) { curSearch.removeAttribute('aria-activedescendant'); return; }
+    const el = $(`cur-opt-${i}`);
+    if (!el) return;
+    el.classList.add('active');
+    curSearch.setAttribute('aria-activedescendant', el.id);
+    el.scrollIntoView({ block: 'nearest' });
+  }
+
+  function openCurrency() {
+    curPop.hidden = false;
+    curTrigger.setAttribute('aria-expanded', 'true');
+    curSearch.value = '';
+    renderCurrencyList();
+    curSearch.focus();
+  }
+
+  function closeCurrency(returnFocus = true) {
+    if (curPop.hidden) return;
+    curPop.hidden = true;
+    curTrigger.setAttribute('aria-expanded', 'false');
+    if (returnFocus) curTrigger.focus();
+  }
+
+  function selectCurrency(code) {
+    const c = BY_CODE[code] || currencyInfo(code);
+    selectedCurrency = c.code;
+    $('cur-symbol').textContent = c.symbol;
+    $('cur-symbol').dataset.long = String(c.symbol.length > 2);
+    $('cur-code').textContent = c.code;
+    $('cur-name').textContent = c.name;
+    $('amount-prefix').textContent = c.symbol;
+    const amount = $('p-amount');
+    amount.step = c.digits > 0 ? (1 / 10 ** c.digits).toFixed(c.digits) : '1';
+    amount.placeholder = (0).toLocaleString(LOCALE, { minimumFractionDigits: c.digits, maximumFractionDigits: c.digits });
+  }
+
+  curTrigger.addEventListener('click', () => (curPop.hidden ? openCurrency() : closeCurrency()));
+  curTrigger.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openCurrency(); }
+  });
+  curSearch.addEventListener('input', () => renderCurrencyList(curSearch.value));
+  curSearch.addEventListener('keydown', (e) => {
+    const last = visibleCurrencies.length - 1;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIndex >= last ? 0 : activeIndex + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIndex <= 0 ? last : activeIndex - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); setActive(0); }
+    else if (e.key === 'End') { e.preventDefault(); setActive(last); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0) { selectCurrency(visibleCurrencies[activeIndex].code); closeCurrency(); }
+    }
+    else if (e.key === 'Escape') { e.preventDefault(); closeCurrency(); }
+    else if (e.key === 'Tab') { closeCurrency(false); }
+  });
+  curList.addEventListener('mousemove', (e) => {
+    const li = e.target.closest('.cur-option');
+    if (li && Number(li.dataset.index) !== activeIndex) setActive(Number(li.dataset.index));
+  });
+  curList.addEventListener('click', (e) => {
+    const li = e.target.closest('.cur-option');
+    if (!li) return;
+    selectCurrency(visibleCurrencies[Number(li.dataset.index)].code);
+    closeCurrency();
+  });
+  document.addEventListener('click', (e) => {
+    if (!$('currency').contains(e.target)) closeCurrency(false);
+  });
+
+  // ── Health Check ────────────────────────────────────────────────────────────
+  async function checkHealth() {
+    const box = $('health');
+    const text = $('health-text');
+    try {
+      const r = await fetch(`${API}/health`);
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.status === 'ok') {
+        box.dataset.state = 'ok';
+        text.textContent = `API v${d.version} · Online`;
+      } else {
+        box.dataset.state = 'error';
+        text.textContent = 'API degradada';
+      }
+    } catch {
+      box.dataset.state = 'error';
+      text.textContent = 'API no disponible';
+    }
+  }
+
+  // ── Merchant ────────────────────────────────────────────────────────────────
+  $('merchant-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearInvalid(e.target);
+    const name = $('m-name').value.trim();
+    const email = $('m-email').value.trim();
+    const err = firstError([
+      ['m-name', name, 'El nombre es obligatorio.'],
+      ['m-email', email, 'El email es obligatorio.'],
+      ['m-email', $('m-email').checkValidity(), 'El email del merchant no es válido.'],
+    ]);
+    if (err) { failValidation(err); return; }
+
+    const btn = $('m-submit');
+    setLoading(btn, true);
+    try {
+      const r = await fetch(`${API}/merchants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { toast(errorMessage(d, 'Error al crear el merchant.'), 'error'); return; }
+
+      currentApiKey = d.api_key;
+      currentMerchant = d.name;
+      $('key-merchant').textContent = d.name;
+      $('api-key-value').textContent = d.api_key;
+      $('key-box').hidden = false;
+      e.target.reset();
+      toast(`Merchant “${d.name}” creado.`);
+      await loadPayments();
+    } catch {
+      toast('No se pudo conectar con la API.', 'error');
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+
+  $('copy-key').addEventListener('click', async () => {
+    const btn = $('copy-key');
+    try {
+      await navigator.clipboard.writeText(currentApiKey);
+      btn.innerHTML = icon('check');
+      toast('API key copiada al portapapeles.');
+      setTimeout(() => { btn.innerHTML = icon('copy'); }, 1600);
+    } catch {
+      toast('No se pudo copiar. Selecciona la clave manualmente.', 'error');
+    }
+  });
+
+  // ── Pagos ───────────────────────────────────────────────────────────────────
+  const STATUS = {
+    pending:   { label: 'Pendiente',   plural: 'Pendientes',   icon: 'clock' },
+    completed: { label: 'Completado',  plural: 'Completados',  icon: 'check' },
+    failed:    { label: 'Fallido',     plural: 'Fallidos',     icon: 'x' },
+    refunded:  { label: 'Reembolsado', plural: 'Reembolsados', icon: 'rotate-ccw' },
+  };
+
+  function statusTag(s) {
+    const m = STATUS[s] || { label: s, icon: 'circle-alert' };
+    return `<span class="tag s-${esc(s)}">${icon(m.icon)}${esc(m.label)}</span>`;
+  }
+
+  // Botones de acción por estado; deben reflejar VALID_TRANSITIONS del backend.
+  const ACTIONS = {
+    pending: [
+      { status: 'completed', label: 'Completar', icon: 'check', cls: 'btn-success' },
+      { status: 'failed', label: 'Fallar', icon: 'x', cls: 'btn-danger' },
+    ],
+    completed: [
+      { status: 'refunded', label: 'Reembolsar', icon: 'rotate-ccw', cls: 'btn-warn' },
+    ],
+  };
+
+  function actionButtons(p, amountText) {
+    const id = esc(p.id);
+    return (ACTIONS[p.status] || []).map((a) => `
+      <button type="button" class="btn btn-sm ${a.cls}" data-id="${id}" data-status="${a.status}"
+              aria-label="${esc(`${a.label} pago de ${amountText}`)}">${icon(a.icon)}${a.label}</button>`).join('');
+  }
+
+  function detailCell(p) {
+    if (!p.description && !p.customer_email) return '<span class="muted">—</span>';
+    const desc = p.description
+      ? `<div class="detail-desc" title="${esc(p.description)}">${esc(p.description)}</div>`
+      : '<div class="muted">Sin descripción</div>';
+    const client = p.customer_email
+      ? `<div class="detail-client" title="${esc(p.customer_email)}">${icon('mail')}<span>${esc(p.customer_email)}</span></div>`
+      : '';
+    return desc + client;
+  }
+
+  function paymentRow(p) {
+    const amountText = formatMoney(p.amount, p.currency);
+    const actions = actionButtons(p, amountText);
+    const hasDetail = p.description || p.customer_email;
+    return `
+      <tr>
+        <td class="cell-id"><span class="pid" title="${esc(p.id)}">${esc(String(p.id).slice(0, 8))}…</span></td>
+        <td class="cell-amount"><span class="money">${esc(amountText)}</span><span class="money-code">${esc(p.currency)}</span></td>
+        <td class="cell-status">${statusTag(p.status)}</td>
+        <td class="cell-detail${hasDetail ? '' : ' cell-detail-empty'}">${detailCell(p)}</td>
+        <td class="cell-date date"><time datetime="${esc(p.created_at)}">${esc(formatDate(p.created_at))}</time></td>
+        <td class="cell-actions${actions ? '' : ' cell-actions-empty'}">${actions ? `<div class="actions">${actions}</div>` : '<span class="muted">—</span>'}</td>
+      </tr>`;
+  }
+
+  function renderStats(payments = []) {
+    const counts = { pending: 0, completed: 0, failed: 0, refunded: 0 };
+    payments.forEach((p) => { if (p.status in counts) counts[p.status] += 1; });
+    $('stats').innerHTML = Object.entries(STATUS).map(([key, m]) => `
+      <div class="stat">
+        <span class="stat-icon s-${key}">${icon(m.icon)}</span>
+        <div>
+          <div class="stat-value">${counts[key]}</div>
+          <div class="stat-label">${m.plural}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderEmpty(title, text) {
+    $('payments-container').innerHTML = `
+      <div class="empty">
+        <span class="empty-icon">${icon('inbox')}</span>
+        <strong>${esc(title)}</strong>
+        <p>${esc(text)}</p>
+      </div>`;
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(LOCALE, { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
+  async function loadPayments() {
+    const btn = $('refresh');
+    if (!currentApiKey) {
+      renderStats();
+      renderEmpty('Aún no hay merchant', 'Crea un merchant para obtener su API key y empezar a registrar pagos.');
+      $('payments-sub').textContent = 'Sin merchant activo';
+      btn.disabled = true;
+      return;
+    }
+    setLoading(btn, true);
+    try {
+      const r = await fetch(`${API}/payments`, { headers: { 'X-API-Key': currentApiKey } });
+      const payments = await r.json().catch(() => ({}));
+      if (!r.ok) { toast(errorMessage(payments, 'Error al cargar los pagos.'), 'error'); return; }
+
+      renderStats(payments);
+      $('payments-sub').textContent =
+        `${payments.length} ${payments.length === 1 ? 'pago' : 'pagos'} · ${currentMerchant}`;
+
+      if (!payments.length) {
+        renderEmpty('Sin pagos todavía', 'Crea el primer pago de este merchant desde el formulario “Nuevo pago”.');
+        return;
+      }
+
+      $('payments-container').innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">ID</th><th scope="col">Importe</th><th scope="col">Estado</th>
+                <th scope="col">Detalle</th><th scope="col">Fecha</th><th scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>${payments.map(paymentRow).join('')}</tbody>
+          </table>
+        </div>`;
+    } catch {
+      renderStats();
+      $('payments-sub').textContent = `${currentMerchant} · sin conexión`;
+      renderEmpty('No se pudieron cargar los pagos', '¿Está la API activa? Revisa el indicador de estado arriba a la derecha.');
+      checkHealth();
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  $('refresh').addEventListener('click', loadPayments);
+
+  $('payment-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentApiKey) {
+      toast('Primero crea un merchant para obtener la API key.', 'error');
+      $('m-name').focus();
+      return;
+    }
+    clearInvalid(e.target);
+    const amount = parseFloat($('p-amount').value);
+    const digits = minorUnits(selectedCurrency);
+    const desc = $('p-desc').value.trim();
+    const cEmail = $('p-email').value.trim();
+    const err = firstError([
+      ['p-amount', Number.isFinite(amount) && amount > 0, 'Introduce un importe válido mayor que cero.'],
+      ['p-amount', Number(amount.toFixed(digits)) === amount,
+        digits ? `${selectedCurrency} admite como máximo ${digits} decimales.` : `${selectedCurrency} no admite decimales.`],
+      ['p-email', $('p-email').checkValidity(), 'El email del cliente no es válido.'],
+    ]);
+    if (err) { failValidation(err); return; }
+    const body = { amount, currency: selectedCurrency };
+    if (desc) body.description = desc;
+    if (cEmail) body.customer_email = cEmail;
+
+    const btn = $('p-submit');
+    setLoading(btn, true);
+    try {
+      const r = await fetch(`${API}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': currentApiKey },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { toast(errorMessage(d, 'Error al crear el pago.'), 'error'); return; }
+
+      toast(`Pago de ${formatMoney(d.amount, d.currency)} creado.`);
+      $('p-amount').value = '';
+      $('p-desc').value = '';
+      $('p-email').value = '';
+      await loadPayments();
+    } catch {
+      toast('No se pudo conectar con la API.', 'error');
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+
+  $('payments-container').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-status]');
+    if (!btn) return;
+    const { id, status } = btn.dataset;
+    btn.closest('.actions').querySelectorAll('button').forEach((b) => { b.disabled = true; });
+    btn.classList.add('loading');
+    try {
+      const r = await fetch(`${API}/payments/${encodeURIComponent(id)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': currentApiKey },
+        body: JSON.stringify({ status }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { toast(errorMessage(d, 'No se pudo actualizar el estado.'), 'error'); }
+      else { toast(`Pago marcado como ${STATUS[status].label.toLowerCase()}.`); }
+    } catch {
+      toast('No se pudo actualizar el estado del pago.', 'error');
+    }
+    await loadPayments();
+  });
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  selectCurrency('EUR');
+  loadPayments();
+  checkHealth();
+  setInterval(checkHealth, 30_000);
+</script>
+</body>
+</html>
